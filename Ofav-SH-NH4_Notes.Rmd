@@ -1,0 +1,344 @@
+---
+title: "S:H cell ratios in Ofav [Control vs NH4]"
+author: "Ana Palacio-Castro"
+date: "October 1, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+
+### General project set-up 
+
+```{r}
+
+    getwd()
+
+    # Get all libraries and sources required to run the script
+        source("STEPoneFunction.R")# R.Cunning steponeR function
+        library(plyr)
+        library(reshape2)
+        library(ggplot2)
+        library(lme4)
+        library(lmerTest)
+
+
+```
+
+##---------------------------------------------------------------------------------
+## 1. Calculate qPCR RATIOS 
+
+Get the raw data for Ofav R.Cunning steponeR function:
+
+* Get list of plate files to read
+
+* Calculate the ratios
+
+* Extract the results
+ 
+```{r}
+
+  Ofav.plates <- list.files(path="data", pattern="csv", full.names=T)
+  # Ofav.plates
+
+
+  # Run stepone function to get Ratios
+  
+  Ofav.Out <- steponeR(files=Ofav.plates, target.ratios=c("A.Ofav", "B.Ofav","C.Ofav", "D.Ofav"), 
+                       fluor.norm=list(A=-0.064, B=4.197, C=3.798, D=0, Ofav=7.416),
+                       copy.number=list(A=1, B=1,C=50, D=3, Ofav=14),
+                       ploidy=list(A=1, B=1, C=1, D=1, Ofav=2),
+                       extract=list(A=0.813, B=0.813, C=0.813, D=0.813, Ofav=0.982))
+  
+  # Target ratio results
+  Ofav<-Ofav.Out$result
+
+```
+
+### Data CLEANING part A
+
+```{r}
+    # 1. Check and remove NTC wells
+    
+    ntc <- Ofav[which(Ofav$Sample.Name=="NTC"), ]
+    Ofav <- droplevels(Ofav[!rownames(Ofav) %in% rownames(ntc), ])
+    
+    # 2. Check and remove + Control wells
+    
+    Positive <- Ofav[which(Ofav$Sample.Name=="Control"), ]
+    Ofav <- droplevels(Ofav[!rownames(Ofav) %in% rownames(Positive), ])
+```
+
+
+### Calculate total S/H ratio, clade specific ratios and clade (D) proportion
+
+```{r}
+
+# 1. If Clade only detected in one technical replicate, set its ratio to NA (becomes zero)
+    Ofav$A.Ofav[which(Ofav$A.reps==1)] <- NA
+    Ofav$B.Ofav[which(Ofav$B.reps==1)] <- NA
+    Ofav$C.Ofav[which(Ofav$C.reps==1)] <- NA
+    Ofav$D.Ofav[which(Ofav$D.reps==1)] <- NA
+
+# 2. Rename cols and make NA=0
+    colnames(Ofav)[which(colnames(Ofav) %in% c("A.Ofav", "B.Ofav","C.Ofav", "D.Ofav" ))] <- c("A.SH", "B.SH","C.SH", "D.SH")  
+
+    Ofav$A.SH[is.na(Ofav$A.SH)] <- 0
+    Ofav$B.SH[is.na(Ofav$B.SH)] <- 0
+    Ofav$C.SH[is.na(Ofav$C.SH)] <- 0
+    Ofav$D.SH[is.na(Ofav$D.SH)] <- 0
+
+# 3. Get the ratios and log 10
+    # Total ratio
+    Ofav$tot.SH <- Ofav$A.SH + Ofav$B.SH + Ofav$C.SH + Ofav$D.SH    
+    Ofav$logTot.SH <- log10(Ofav$tot.SH )  # Calculate log10 SH ratio
+    
+    # A LOG10 ratio
+        Ofav$logA.SH <- log10(Ofav$A.SH)
+    # B LOG10 ratio
+        Ofav$logB.SH <- log10(Ofav$B.SH)
+    # C LOG10 ratio
+        Ofav$logC.SH <- log10(Ofav$C.SH)
+    # D LOG10 ratio
+        Ofav$logD.SH <- log10(Ofav$D.SH)  
+    
+      Ofav$logTot.SH[which(Ofav$tot.SH==0)] <- NA
+      Ofav$logA.SH[which(Ofav$A.SH==0)] <- NA
+      Ofav$logB.SH[which(Ofav$B.SH==0)] <- NA
+      Ofav$logC.SH[which(Ofav$C.SH==0)] <- NA
+      Ofav$logD.SH[which(Ofav$D.SH==0)] <- NA
+  
+# 4. Clade Proportion
+      # D Proportion
+      Ofav$D.Prp<-(Ofav$D.SH/Ofav$tot.SH)
+      D.Pro<-hist(Ofav$D.Prp)
+```
+
+All the cores are cleary dominated by D symbionts, so I won't perform any analysis splitting the cores by clade and will use the total SH cell ratio, assuming this is basically D. 
+
+
+### DATA CLEANING part B
+
+3. Check and remove samples that did not have calculated SH cell ratio
+
+```{r}
+    NoHSratio <- Ofav[which(Ofav$tot.SH==0), ]
+    Ofav <- droplevels(Ofav[!rownames(Ofav) %in% rownames(NoHSratio), ])
+```    
+
+4. Chose bw samples ran more than once. This is a manual step in which I compare the quality of the amplifications and decide which run to keep depending on the SD between technical replicates and CTs. 
+ 
+* First, I create a unique ID for each sample.run and count the number of times that each core was ran in the qPCR. Then I export the data from the samples that have duplicates in a .csv file that I "manually" check
+
+```{r}
+    Ofav$ID<-paste(Ofav$Sample.Name,Ofav$File.Name, sep = ".")
+    
+  # Check the number of times that a sigle sample was ran  
+    ReRunA <- Ofav[duplicated(Ofav$Sample.Name),]
+    
+    n_RunA <- data.frame(table(Ofav$Sample.Name))
+    colnames(n_RunA)<-c("Sample.Name","RanA")
+    Ofav<-join(Ofav, n_RunA, type = "left")
+    
+    DuplicatesA <- Ofav[(Ofav$RanA>1),]
+    write.csv(DuplicatesA, file = 'DuplicatesA.csv')
+    
+```
+
+* Look at the duplicates in 'DuplicatesA.csv' and select the best runs per core. In the DuplicatesA file I delete the good runs and keep the bad ones that are saved a new file called "ToRem1.csv". I use that file to remove them from the general data frame.
+
+* Finally check for duplicates again (you should not have) and summarize the data to check that it makes sense.
+
+```{r}
+  # Remove bad replicates
+    ToRem1<-read.csv("ToRem1.csv") 
+    # 09/01/16
+    Ofav<-Ofav[!(Ofav$ID %in% ToRem1$ID),]
+    
+  # Check for replicates again--should have none
+    
+    n_RunB <- data.frame(table(Ofav$Sample.Name))
+    ReRunB <- Ofav[duplicated(Ofav$Sample.Name),]
+    colnames(n_RunB)<-c("Sample.Name","RanB")
+    Ofav<-join(Ofav, n_RunB, type = "left")
+    
+    
+  # List of dupplicated samples, should have 0 rows now
+    DuplicatesB <- Ofav[(Ofav$RanB>1),]
+    # write.csv(DuplicatesC, file = 'DuplicatesC.csv')
+```     
+
+5. Check the data!
+
+```{r}
+      summary(Ofav)
+```
+
+6. Export data if a want local backup
+
+```{r}
+    # write.csv(Ofav, file = 'OfavSH.csv')
+```
+   
+    
+##---------------------------------------------------------------------------------
+## 2. DATA ANALYSIS
+
+    
+### 1.Define labeling and factors for each Ofav core sampled: 
+    
+* Import treatment info from last Lauren's file 
+
+```{r}
+    Treatments<-read.csv("TGFB-Final_AP.csv", header = TRUE)
+```  
+
+* Merge SH ratios and Treatment information
+
+```{r}   
+    Ofav.data<-join(Ofav, Treatments, by = "Sample.Name", 
+                  type = "full", match = "all")
+```
+
+### 2. Exploratory graphs 
+
+#### 2.1 Histograms
+
+Histogram of log10(SH) using all data
+
+```{r}
+    
+    HistoSH<-qplot(logTot.SH, data=Ofav.data, binwidth=0.15)  
+    HistoSH
+```
+    
+Histogram of log10(SH) by Combo (Nutrient Treatment * LGTB Treatment)
+
+````{r}
+    HistoSH + 
+      facet_wrap(Treatment~Treatment.2) + 
+      geom_density()
+```
+  
+This is redundant information, but looking at these density plots I am a bit concerned about the SH cell ratios in Inhibitor, since the differences bw Controls and NH4 are not that clear
+
+```{r}
+    hist_Tre <- ggplot(Ofav.data, aes(x=logTot.SH, fill=Treatment))
+    
+    hist_Tre + 
+      geom_density(alpha = 0.2) + facet_grid(~Treatment.2)
+```
+
+#### 2.2 Boxplots
+
+Consider that ggplot shows by default median values instead mean values
+    
+Boxplot SH by Nutrients: 
+  
+```{r}
+
+    logSHTreatment <- ggplot(Ofav.data, aes(factor(Treatment), logTot.SH)) +
+        geom_boxplot(aes(fill=factor(Treatment))) +
+        geom_jitter(width = 0.2, aes(colour =factor(Colony)))
+   
+   logSHTreatment
+     
+```
+
+Boxplot SH by Nutrients * TGFB: 
+
+```{r}
+    logSHTreatment +
+      facet_grid ((~Treatment.2))
+```
+   
+* Interestingly, Colony 4 has generally lower SH and 7 and 8 have higher. 
+
+* I think that 6 may be have lower values in the NH4 treatment because of the lower time with nutrients after mortallity?
+
+
+If you want the mean values +- SD: 
+    
+    * Create a function to calculate de values: 
+
+```{r}
+          min.mean.sd.max <- function(x) {
+            r <- c(min(x), mean(x) - sd(x), mean(x), mean(x) + sd(x), max(x))
+            names(r) <- c("ymin", "lower", "middle", "upper", "ymax")
+            r
+          }
+```
+        
+    * And plot using ggplot
+
+```{r}
+      PlotMeanAndSD <- ggplot(aes(y = logTot.SH, x = factor(Treatment)), data = Ofav.data) +
+                  facet_grid ((~Treatment.2))
+      
+      PlotMeanAndSD + 
+         stat_summary(fun.data = min.mean.sd.max, geom = "boxplot") +
+         geom_jitter(position=position_jitter(width=.2), size=2) + 
+         xlab("Treatments") + ylab("Log10(SH cell ratio)")
+
+```
+  
+  Finally, let's explore that possible colony effect!
+  
+```{r}
+    logSHTreatment +
+      facet_grid (~Colony)
+```
+
+And... fuck, maybe consider to exclude colony 6 or to treat the SH cell ratio as a continous variable instead as a high/low category. See ANOVA at the end.
+
+```{r}
+    logSHTreatment +
+      facet_grid (Treatment.2~Colony)
+```
+  
+Possible problematic combinations: 
+
+* Colony 6 in Control
+* Colony 4 in Inhibitor
+* Colony 4 in LPS?
+
+Explore later, check weird SH Values and new introduced cores in the NH4 treatmet.
+
+
+### 3. ANOVAs
+    
+#### 1. One way ANOVA to test the effect of nutrients alone: 
+    
+```{r}
+    OnwWayANOVA<-aov(logTot.SH~Treatment, data=Ofav.data)
+        summary(OnwWayANOVA)
+      
+```
+Great! Nutrients increased the SH cell ratio!
+
+#### 2. Two Way ANOVA to test effects of Nutrients (Treatment) * TGFB (Treatment.2)
+
+```{r}
+    
+    TwoWayANOVA<-aov(logTot.SH ~ Treatment*Treatment.2 , data=Ofav.data)
+        summary(TwoWayANOVA)
+        drop1(TwoWayANOVA,~.,test="F")
+        
+```
+
+ATENTION!!!! summary(ANOVA) and drop1(ANOVA) give different p values for the model. I have to investigate what the difference is, but in both cases Treatment (Nutrients) has a significant effect on the SH cell ratio while Treatment.2 (TGFB) does not, nor the interaction. Great!!!
+
+However, I am afraid that the differences in the SH cell ratio in "Inhibitor" are not very strong. See graphs. 
+
+
+#### 3. One Way ANOVA within factor to test effects of Nutrients (Treatment)/ Colony
+  
+```{r}
+    
+    TwoFactorsLMcolony = lmer('logTot.SH~Treatment*Treatment.2 + (1|Colony/Treatment)', data=Ofav.data)
+        print(anova(TwoFactorsLMcolony))
+        summary(TwoFactorsLMcolony)
+
+```

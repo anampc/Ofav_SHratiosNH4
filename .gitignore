@@ -1,0 +1,12 @@
+# R
+.Rhistory
+
+# Session data
+.RData
+
+# RStudio
+.Rproj.user
+
+# Other files like exported graphs 
+*.pdf
+
