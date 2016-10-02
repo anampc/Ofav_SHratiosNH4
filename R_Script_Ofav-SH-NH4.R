@@ -176,10 +176,14 @@ Ofav <- droplevels(Ofav[!rownames(Ofav) %in% rownames(Positive), ])
       geom_density(alpha = 0.2) + facet_grid(Treatment.2~.)
     
     # Ggplot shows by default median instead mean vlues
-    logSHTreatment <- ggplot(Ofav.data, aes(factor(Treatment), logTot.SH)) + 
-    logSHTreatment +
+    
+    logSHTreatment <- ggplot(Ofav.data, aes(factor(Treatment), logTot.SH))  +
       geom_boxplot(aes(fill=factor(Treatment))) + 
-      geom_jitter(width = 0.2) +
+      geom_jitter(width = 0.2, aes(colour =factor(Colony)))
+    
+    logSHTreatment
+    
+    logSHTreatment +
       facet_grid ((~Treatment.2))
     
     # Plot mean +- SD
@@ -202,15 +206,21 @@ Ofav <- droplevels(Ofav[!rownames(Ofav) %in% rownames(Positive), ])
   
   # 3. ANOVAS
     
-    # Effectof nutrients alone:
+    # 1. Effectof nutrients alone:
       
     OnwWayANOVA<-aov(logTot.SH~Treatment, data=Ofav.data)
         summary(OnwWayANOVA)
 
-    # Effects of nutrients * treatment # 2
+    # 2. Effects of nutrients * treatment # 2
     
     TwoWayANOVA<-aov(logTot.SH ~ Treatment*Treatment.2 , data=Ofav.data)
         summary(TwoWayANOVA)
         drop1(TwoWayANOVA,~.,test="F")
+
+    #### 3. One Way ANOVA within factor to test effects of Nutrients (Treatment)/ Colony
+        
+        TwoFactorsLMcolony = lmer('logTot.SH~Treatment*Treatment.2 + (1|Colony/Treatment)', data=Ofav.data)
+        print(anova(TwoFactorsLMcolony))
+        summary(TwoFactorsLMcolony)
 
     
