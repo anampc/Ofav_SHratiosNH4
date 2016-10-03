@@ -7,6 +7,6 @@
 # RStudio
 .Rproj.user
 
-# Other files like exported graphs 
+# Other files like exported graphs or manipulated .odt
+*.ods
 *.pdf
-
