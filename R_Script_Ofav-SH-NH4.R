@@ -7,6 +7,9 @@ getwd()
     library(plyr)
     library(reshape2)
     library(ggplot2)
+    library(nlme)
+    library(lme4)
+    library(lmerTest)
 
 
 
@@ -15,7 +18,7 @@ getwd()
 ##----------------------------------------------------------##
 
 # +++++++++
-# Libraries                           
+# Libraries/sources for this section                           
 # source("STEPoneFunction.R")
 # +++++++++
 
@@ -41,13 +44,13 @@ Ofav<-Ofav.Out$result
 # DATA CLEANING part A
 
 ## 1. Check and remove NTC wells
-ntc <- Ofav[which(Ofav$Sample.Name=="NTC"), ]
-if(any(!is.na(ntc$CT))) warning ("Template detected in NTC: interpret data with caution")
-Ofav <- droplevels(Ofav[!rownames(Ofav) %in% rownames(ntc), ])
+  ntc <- Ofav[which(Ofav$Sample.Name=="NTC"), ]
+  if(any(!is.na(ntc$CT))) warning ("Template detected in NTC: interpret data with caution")
+  Ofav <- droplevels(Ofav[!rownames(Ofav) %in% rownames(ntc), ])
 
 ## 2. Check and remove + Control wells
-Positive <- Ofav[which(Ofav$Sample.Name=="Control"), ]
-Ofav <- droplevels(Ofav[!rownames(Ofav) %in% rownames(Positive), ])
+  Positive <- Ofav[which(Ofav$Sample.Name=="Control"), ]
+  Ofav <- droplevels(Ofav[!rownames(Ofav) %in% rownames(Positive), ])
 
 ##----------------------------------------------------------##
 
@@ -121,9 +124,9 @@ Ofav <- droplevels(Ofav[!rownames(Ofav) %in% rownames(Positive), ])
     # Save the ones you are removing as ToRem1.csv
     
   # Remove bad replicates
-    ToRem1<-read.csv("ToRem1.csv") 
-    # 09/01/16
-    Ofav<-Ofav[!(Ofav$ID %in% ToRem1$ID),]
+    ToRem2<-read.csv("ToRem2.csv") 
+    # 10/12/16
+    Ofav<-Ofav[!(Ofav$ID %in% ToRem2$ID),]
     
   # Check for replicates again--should have none
     
@@ -132,10 +135,9 @@ Ofav <- droplevels(Ofav[!rownames(Ofav) %in% rownames(Positive), ])
     colnames(n_RunB)<-c("Sample.Name","RanB")
     Ofav<-join(Ofav, n_RunB, type = "left")
     
-    
   # List of dupplicated samples, should have 0 rows now
     DuplicatesB <- Ofav[(Ofav$RanB>1),]
-    # write.csv(DuplicatesC, file = 'DuplicatesC.csv')
+    # write.csv(DuplicatesB, file = 'DuplicatesB.csv')
     
   # Check the data!
     summary(Ofav)
@@ -157,6 +159,7 @@ Ofav <- droplevels(Ofav[!rownames(Ofav) %in% rownames(Positive), ])
     
     Ofav.data<-join(Ofav, Treatments, by = "Sample.Name", 
                     type = "full", match = "all")
+    # write.csv(Ofav.data, file = 'OfavAllData.csv')
     
   # 2. Exploratory graphs 
 
@@ -164,45 +167,77 @@ Ofav <- droplevels(Ofav[!rownames(Ofav) %in% rownames(Positive), ])
     # library(ggplot2)
     # +++++++++
     
-    HistoSH<-qplot(logTot.SH, data=Ofav.data, binwidth=0.15)  
-    
-    HistoSH + 
-      facet_wrap(Treatment~Treatment.2) + 
-      geom_density()
-    
-    hist_Tre <- ggplot(Ofav.data, aes(x=logTot.SH, fill=Treatment))
-    
-    hist_Tre + 
-      geom_density(alpha = 0.2) + facet_grid(Treatment.2~.)
-    
-    # Ggplot shows by default median instead mean vlues
-    
-    logSHTreatment <- ggplot(Ofav.data, aes(factor(Treatment), logTot.SH))  +
-      geom_boxplot(aes(fill=factor(Treatment))) + 
-      geom_jitter(width = 0.2, aes(colour =factor(Colony)))
-    
-    logSHTreatment
-    
-    logSHTreatment +
-      facet_grid ((~Treatment.2))
-    
-    # Plot mean +- SD
-    
-    # Create a function
-        min.mean.sd.max <- function(x) {
-          r <- c(min(x), mean(x) - sd(x), mean(x), mean(x) + sd(x), max(x))
-          names(r) <- c("ymin", "lower", "middle", "upper", "ymax")
-          r
-        }
-        
-    # ggplot code using mean and SD
-      PlotMeanAndSD <- ggplot(aes(y = logTot.SH, x = factor(Treatment)), data = Ofav.data) +
-                  facet_grid ((~Treatment.2))
+    # HISTOGRAMS
+     
+          # All data
+            HistoSH<-qplot(logTot.SH, data=Ofav.data, binwidth=0.15)  
+          
+          #   By combo  
+            HistoSH + 
+              facet_wrap(Treatment~Treatment.2) + 
+              geom_density()
+          
+            # Density diagrams
+            hist_Tre <- ggplot(Ofav.data, aes(x=logTot.SH, fill=Treatment))
+          
+            hist_Tre + 
+            geom_density(alpha = 0.2) + facet_grid(Treatment.2~.)
+            
       
-      PlotMeanAndSD <- PlotMeanAndSD + 
-         stat_summary(fun.data = min.mean.sd.max, geom = "boxplot") +
-         geom_jitter(position=position_jitter(width=.2), size=2) + 
-         xlab("Treatments") + ylab("Log10(SH cell ratio)")
+      # BOXPLOTS
+    
+          # Ggplot shows by default median instead mean vlues
+          
+          #1. Boxplot SH by Nutrients:
+          
+          logSHTreatment <- ggplot(Ofav.data, aes(factor(Treatment), logTot.SH))  +
+            geom_boxplot(aes(fill=factor(Treatment))) + 
+            geom_jitter(width = 0.2, aes(colour =factor(Colony)))
+          
+          logSHTreatment
+          
+          #2. Boxplot SH by Nutrients ADN Treatment:
+          logSHTreatment +
+            facet_grid ((~Treatment.2))
+          
+          # 3. Plot mean +- SD
+          
+                # Create a function
+                    min.mean.sd.max <- function(x) {
+                      r <- c(min(x), mean(x) - sd(x), mean(x), mean(x) + sd(x), max(x))
+                      names(r) <- c("ymin", "lower", "middle", "upper", "ymax")
+                      r
+                    }
+                    
+                # ggplot code using mean and SD
+                  PlotMeanAndSD <- ggplot(aes(y = logTot.SH, x = factor(Treatment)), data = Ofav.data) +
+                              facet_grid ((~Treatment.2))
+            
+                  PlotMeanAndSD <- PlotMeanAndSD + 
+                     stat_summary(fun.data = min.mean.sd.max, geom = "boxplot") +
+                     geom_jitter(position=position_jitter(width=.2), size=2) + 
+                     xlab("Treatments") + ylab("Log10(SH cell ratio)")
+            
+      
+     # 4. Colony effect en SH
+        logSHTreatment +
+          facet_grid (~Colony)
+
+        # Maybe consider to exclude colony 6 or to treat the SH cell ratio as a continous variable instead as a high/low category. 
+        # See ANOVA at the end.
+          
+    # 5. Colony*Treatment effect en SH
+      logSHTreatment +
+        facet_grid (Treatment.2~Colony)
+    
+    # Possible problematic combinations: 
+      
+          # * Colony 6 in Control
+          # * Colony 4 in Inhibitor
+          # * Colony 4 in LPS?
+
+    # Explore later, check weird SH Values and new introduced cores in the NH4 treatmet.
+
   
   # 3. ANOVAS
     
@@ -210,6 +245,7 @@ Ofav <- droplevels(Ofav[!rownames(Ofav) %in% rownames(Positive), ])
       
     OnwWayANOVA<-aov(logTot.SH~Treatment, data=Ofav.data)
         summary(OnwWayANOVA)
+        plot(OnwWayANOVA)
 
     # 2. Effects of nutrients * treatment # 2
     
@@ -219,8 +255,13 @@ Ofav <- droplevels(Ofav[!rownames(Ofav) %in% rownames(Positive), ])
 
     #### 3. One Way ANOVA within factor to test effects of Nutrients (Treatment)/ Colony
         
-        TwoFactorsLMcolony = lmer('logTot.SH~Treatment*Treatment.2 + (1|Colony/Treatment)', data=Ofav.data)
-        print(anova(TwoFactorsLMcolony))
+        # lmer has issues with p-vales
+        TwoFactorsLMcolony <-lmer(logTot.SH~Treatment*Treatment.2 + (1|Colony/Treatment), data=Ofav.data, REML = FALSE)
+        anova(TwoFactorsLMcolony)
         summary(TwoFactorsLMcolony)
-
+        
+        # we can use lme instad
+        TwoFactorsLMcolony<-lme(logTot.SH~Treatment*Treatment.2,random=~1|Colony,data=Ofav.data)
+        anova(TwoFactorsLMcolony)
+        
     

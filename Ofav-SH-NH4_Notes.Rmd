@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
 
 ### General project set-up 
 
-```{r}
+```{r libraries , results="hide"}
 
     getwd()
 
@@ -21,8 +21,9 @@ knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
         library(plyr)
         library(reshape2)
         library(ggplot2)
-        library(lme4)
-        library(lmerTest)
+        library(nlme)
+        # library(lme4)
+        #library(lmerTest)
 
 
 ```
@@ -38,7 +39,7 @@ Get the raw data for Ofav R.Cunning steponeR function:
 
 * Extract the results
  
-```{r}
+```{r CalculateRatios}
 
   Ofav.plates <- list.files(path="data", pattern="csv", full.names=T)
   # Ofav.plates
@@ -59,7 +60,7 @@ Get the raw data for Ofav R.Cunning steponeR function:
 
 ### Data CLEANING part A
 
-```{r}
+```{r RemoveNTCandControls}
     # 1. Check and remove NTC wells
     
     ntc <- Ofav[which(Ofav$Sample.Name=="NTC"), ]
@@ -116,7 +117,7 @@ Get the raw data for Ofav R.Cunning steponeR function:
       D.Pro<-hist(Ofav$D.Prp)
 ```
 
-All the cores are cleary dominated by D symbionts, so I won't perform any analysis splitting the cores by clade and will use the total SH cell ratio, assuming this is basically D. 
+All the cores are cleary dominated by D symbionts, so I won't perform any analysis splitting the cores by clade and will use the total SH cell ratio, assuming this is basically D1. 
 
 
 ### DATA CLEANING part B
@@ -153,9 +154,9 @@ All the cores are cleary dominated by D symbionts, so I won't perform any analys
 
 ```{r}
   # Remove bad replicates
-    ToRem1<-read.csv("ToRem1.csv") 
-    # 09/01/16
-    Ofav<-Ofav[!(Ofav$ID %in% ToRem1$ID),]
+    ToRem2<-read.csv("ToRem2.csv") 
+    # 10/12/16
+    Ofav<-Ofav[!(Ofav$ID %in% ToRem2$ID),]
     
   # Check for replicates again--should have none
     
@@ -228,7 +229,7 @@ This is redundant information, but looking at these density plots I am a bit con
     hist_Tre <- ggplot(Ofav.data, aes(x=logTot.SH, fill=Treatment))
     
     hist_Tre + 
-      geom_density(alpha = 0.2) + facet_grid(~Treatment.2)
+      geom_density(alpha = 0.2) + facet_grid(Treatment.2~.)
 ```
 
 #### 2.2 Boxplots
@@ -330,15 +331,16 @@ Great! Nutrients increased the SH cell ratio!
 
 ATENTION!!!! summary(ANOVA) and drop1(ANOVA) give different p values for the model. I have to investigate what the difference is, but in both cases Treatment (Nutrients) has a significant effect on the SH cell ratio while Treatment.2 (TGFB) does not, nor the interaction. Great!!!
 
-However, I am afraid that the differences in the SH cell ratio in "Inhibitor" are not very strong. See graphs. 
+However, I am afraid that the differences in the SH cell ratio in "Inhibitor" are not very strong. See graphs
+
 
 
 #### 3. One Way ANOVA within factor to test effects of Nutrients (Treatment)/ Colony
   
 ```{r}
     
-    TwoFactorsLMcolony = lmer('logTot.SH~Treatment*Treatment.2 + (1|Colony/Treatment)', data=Ofav.data)
-        print(anova(TwoFactorsLMcolony))
+   TwoFactorsLMcolony<-lme(logTot.SH~Treatment*Treatment.2,random=~1|Colony,data=Ofav.data)
+        anova(TwoFactorsLMcolony)
         summary(TwoFactorsLMcolony)
 
 ```

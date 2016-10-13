@@ -1,12 +1,13 @@
 # R
 .Rhistory
-
 # Session data
 .RData
-
 # RStudio
 .Rproj.user
-
-# Other files like exported graphs 
+# Other files like exported graphs
 *.pdf
+*.ods
+*.xlsx
+*.html
+/oldOutputs
 
