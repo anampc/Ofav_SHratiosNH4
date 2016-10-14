@@ -18,6 +18,7 @@ knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
 
     # Get all libraries and sources required to run the script
         source("STEPoneFunction.R")# R.Cunning steponeR function
+        library(dplyr)
         library(plyr)
         library(reshape2)
         library(ggplot2)
@@ -344,3 +345,105 @@ However, I am afraid that the differences in the SH cell ratio in "Inhibitor" ar
         summary(TwoFactorsLMcolony)
 
 ```
+
+
+# 3/31/2017: Add copy number corection for O.fav genotypes and rerun stats 
+
+## 1. Calculate Copy number
+
+Get the raw data for Ofav R.Cunning steponeR function:
+
+* Get list of plate files to read
+* Calculate the corections
+
+ 
+```{r CalculateCopyNumber}
+
+Ofav.copyList <- list.files(path="HostCopyNumber/data", pattern="csv", full.names=T)
+  # Ofav.copy
+
+
+  # Run stepone function to get Ratios
+  
+  OfavCopy.Out <- steponeR (files=Ofav.copyList, target.ratios=c("Of_Actin.Of_SC"), 
+                       fluor.norm=list(Of_Actin=0, Of_SC=0),
+                       copy.number=list(Of_Actin=1, Of_SC=1),
+                       ploidy=list(Of_Actin=2, Of_SC=2),
+                       extract=list(Of_Actin=0.982, Of_SC=0.982))
+  
+  # Target ratio results
+  OfavCopy<-OfavCopy.Out$result
+
+```
+### Data CLEANING
+
+```{r RemoveNTCandControls}
+    # 1. Check and remove NTC wells
+      ntc <- OfavCopy[which(OfavCopy$Sample.Name=="0-NTC"), ]
+      OfavCopy <- droplevels(OfavCopy[!rownames(OfavCopy) %in% rownames(ntc), ])
+      
+      # 2. remove samples with 1 amplificaation 
+      # NoData <- OfavCopy[which(OfavCopy$Of_Actin.reps==1), ]
+      
+      NoData <- OfavCopy[which((OfavCopy$Of_Actin.reps==1) |  (OfavCopy$Of_SC.reps==1)), ]
+      OfavCopy <- droplevels(OfavCopy[!rownames(OfavCopy) %in% rownames(NoData), ])
+      
+      # 3. or high SD
+        StDe2 <- OfavCopy[which((OfavCopy$Of_Actin.CT.sd)>0.5|(OfavCopy$Of_SC.CT.sd>0.5)), ]
+        OfavCopy <- droplevels(OfavCopy[!rownames(OfavCopy) %in% rownames(StDe2), ])
+```
+## 2. Calculate Copy number by colony
+
+### Colonies
+Parse sample names, 
+
+```{r ColonyLabels}
+    colony.core <- rbind.fill(lapply(strsplit(as.character(OfavCopy$Sample.Name), split="-"), 
+        function(X) data.frame(t(X))))
+    colnames(colony.core) <- c("Colony", "Core")
+    OfavCopy <- cbind(colony.core, OfavCopy)
+```
+Graph mean +- SD copy number
+
+```{r meanC-Number}
+
+ OfavCopy<-join(OfavCopy, Treatments, by = "Sample.Name", 
+                  type = "inner", match = "all")
+
+  CopyNumber <- ggplot(OfavCopy, aes (Colony, Of_Actin.Of_SC, colour=factor(Colony)))
+  CopyNumber + stat_summary(fun.data = "mean_cl_boot",geom = "errorbar", width = 0.2)+
+    stat_summary(fun.y=mean, geom="point", size =3, alpha=0.5) +
+    geom_jitter()
+  
+  par(mfrow=c(2,2))
+      # Mean CTs and sd bu Colony
+      plot(x=OfavCopy$Colony, y=OfavCopy$Of_Actin.CT.mean)
+      plot(x=OfavCopy$Colony, y=OfavCopy$Of_SC.CT.mean)
+      plot(x=OfavCopy$Colony, y=OfavCopy$Of_Actin.CT.sd)
+      plot(x=OfavCopy$Colony, y=OfavCopy$Of_SC.CT.sd)
+  par(mfrow=c(1,1))
+```
+
+
+```{r meanC-Number}
+#  
+# library(dplyr)
+# grouped <- group_by(OfavCopy, Colony)
+# summarise(grouped, mean=mean(Of_Actin.Of_SC), sd=sd(Of_Actin.Of_SC))
+# 
+# summarise(group_by(grouped, Colony),
+#           mean=mean(Of_Actin.Of_SC), sd=sd(Of_Actin.Of_SC))
+# 
+# ddply(CopyNumber, Colony, summarise, mean=mean(Of_Actin.Of_SC),sd=sd(Of_Actin.Of_SC))
+
+```
+  
+      
+```{r_ANOVA}
+    CopyANOVA <-aov(Of_Actin.Of_SC~Colony, data=OfavCopy)
+        summary(CopyANOVA)
+      
+```
+
+
+
