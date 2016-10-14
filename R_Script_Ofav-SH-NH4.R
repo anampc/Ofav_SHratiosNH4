@@ -167,6 +167,7 @@ Ofav<-Ofav.Out$result
     # library(ggplot2)
     # +++++++++
     
+<<<<<<< HEAD:R_Script_Ofav-SH-NH4.R
     # HISTOGRAMS
      
           # All data
@@ -185,6 +186,29 @@ Ofav<-Ofav.Out$result
             
       
       # BOXPLOTS
+=======
+    HistoSH<-qplot(logTot.SH, data=Ofav.data, binwidth=0.15)  
+    
+    HistoSH + 
+      facet_wrap(Treatment~Treatment.2) + 
+      geom_density()
+    
+    hist_Tre <- ggplot(Ofav.data, aes(x=logTot.SH, fill=Treatment))
+    
+    hist_Tre + 
+      geom_density(alpha = 0.2) + facet_grid(Treatment.2~.)
+    
+    # Ggplot shows by default median instead mean vlues
+    
+    logSHTreatment <- ggplot(Ofav.data, aes(factor(Treatment), logTot.SH))  +
+      geom_boxplot(aes(fill=factor(Treatment))) + 
+      geom_jitter(width = 0.2, aes(colour =factor(Colony)))
+    
+    logSHTreatment
+    
+    logSHTreatment +
+      facet_grid ((~Treatment.2))
+>>>>>>> origin/master:R_Script_Ofav-SH-NH4.R
     
           # Ggplot shows by default median instead mean vlues
           
@@ -255,6 +279,7 @@ Ofav<-Ofav.Out$result
 
     #### 3. One Way ANOVA within factor to test effects of Nutrients (Treatment)/ Colony
         
+<<<<<<< HEAD:R_Script_Ofav-SH-NH4.R
         # lmer has issues with p-vales
         TwoFactorsLMcolony <-lmer(logTot.SH~Treatment*Treatment.2 + (1|Colony/Treatment), data=Ofav.data, REML = FALSE)
         anova(TwoFactorsLMcolony)
@@ -264,4 +289,10 @@ Ofav<-Ofav.Out$result
         TwoFactorsLMcolony<-lme(logTot.SH~Treatment*Treatment.2,random=~1|Colony,data=Ofav.data)
         anova(TwoFactorsLMcolony)
         
+=======
+        TwoFactorsLMcolony = lmer('logTot.SH~Treatment*Treatment.2 + (1|Colony/Treatment)', data=Ofav.data)
+        print(anova(TwoFactorsLMcolony))
+        summary(TwoFactorsLMcolony)
+
+>>>>>>> origin/master:R_Script_Ofav-SH-NH4.R
     
