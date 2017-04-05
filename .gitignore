@@ -1,9 +1,9 @@
 # R
 .Rhistory
-# Session data
 .RData
-# RStudio
 .Rproj.user
+.Ruserdata
+
 # Other files like exported graphs
 *.pdf
 *.ods

@@ -1,7 +1,7 @@
 ---
-title: "S:H cell ratios in Ofav [Control vs NH4]"
-author: "Ana Palacio-Castro"
-date: "October 1, 2016"
+title: "Ofav-SH-NH4_withCopy"
+author: "AnaPalacio"
+date: "April 4, 2017"
 output: html_document
 ---
 
@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
 ```
 
 
-### General project set-up 
+# General project set-up 
 
 ```{r libraries , results="hide"}
 
@@ -25,12 +25,112 @@ knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
         library(nlme)
         # library(lme4)
         #library(lmerTest)
-
-
 ```
 
+# 1. COPY NUMBER CALCULATION FOR THE HOST 
+
+3 qPCR plates were run with sybr green using HOST-actin and single copy primers. CTs were analized with R.Cunning steponeR function:
+
+* Get list of plate files to read
+* Calculate the copy number ratios. 
+
+ 
+```{r CalculateCopyNumber}
+
+Ofav.copyList <- list.files(path="HostCopyNumber/data", pattern="csv", full.names=T)
+  # Ofav.copy
+
+
+  # Run stepone function to get Ratios
+  
+  OfavCopy.Out <- steponeR (files=Ofav.copyList, target.ratios=c("Of_Actin.Of_SC"), 
+                       fluor.norm=list(Of_Actin=0, Of_SC=0),
+                       copy.number=list(Of_Actin=1, Of_SC=1),
+                       ploidy=list(Of_Actin=2, Of_SC=2),
+                       extract=list(Of_Actin=0.982, Of_SC=0.982))
+  
+  # Target ratio results
+  OfavCopy<-OfavCopy.Out$result
+
+```
+### A. Data CLEANING
+
+```{r RemoveNTC}
+    # 1. Check and remove NTC wells
+      ntc <- OfavCopy[which(OfavCopy$Sample.Name=="0-NTC"), ]
+      OfavCopy <- droplevels(OfavCopy[!rownames(OfavCopy) %in% rownames(ntc), ])
+      
+    # 2. remove samples with 1 amplificaation 
+      NoData <- OfavCopy[which((OfavCopy$Of_Actin.reps==1) |  (OfavCopy$Of_SC.reps==1)), ]
+      OfavCopy <- droplevels(OfavCopy[!rownames(OfavCopy) %in% rownames(NoData), ])
+      
+    # 3. or high SD
+      StDe2 <- OfavCopy[which((OfavCopy$Of_Actin.CT.sd)>0.6|(OfavCopy$Of_SC.CT.sd>0.6)), ]
+      OfavCopy <- droplevels(OfavCopy[!rownames(OfavCopy) %in% rownames(StDe2), ])
+```
+### B. Calculate Copy number by colony
+
+Get Colony number from the sample.name
+
+```{r ColonyLabels}
+    colony.core <- rbind.fill(lapply(strsplit(as.character(OfavCopy$Sample.Name), split="-"), 
+        function(X) data.frame(t(X))))
+    colnames(colony.core) <- c("Colony", "Core")
+    OfavCopy <- cbind(colony.core, OfavCopy)
+```
+Graph mean +- SD copy number and CTS and SD of technical replicates 
+
+```{r meanCNumberAndCTs}
+
+  CopyNumber <- ggplot(OfavCopy, aes (Colony, Of_Actin.Of_SC, colour=factor(Colony)))
+  CopyNumber + stat_summary(fun.data = "mean_cl_boot",geom = "errorbar", width = 0.2)+
+    stat_summary(fun.y=mean, geom="point", size =3, alpha=0.5) +
+    geom_jitter()
+  
+  par(mfrow=c(2,2))
+      # Mean CTs and sd bu Colony
+      plot(x=OfavCopy$Colony, y=OfavCopy$Of_Actin.CT.mean)
+      plot(x=OfavCopy$Colony, y=OfavCopy$Of_SC.CT.mean)
+      plot(x=OfavCopy$Colony, y=OfavCopy$Of_Actin.CT.sd)
+      plot(x=OfavCopy$Colony, y=OfavCopy$Of_SC.CT.sd)
+  par(mfrow=c(1,1))
+```
+
+
+```{r MeanCopyPerColony}
+ddply(OfavCopy, c("Colony"), summarise,
+      mean = mean(Of_Actin.Of_SC), sd = sd(Of_Actin.Of_SC), se =sd(Of_Actin.Of_SC)/sqrt(length(Of_Actin.Of_SC)))
+```
+  
+    
+```{r ANOVAcoloniesCopy}
+  CopyANOVA <-aov (Of_Actin.Of_SC~Colony, data=OfavCopy)
+  summary(CopyANOVA)
+
+  TukeyHSD(CopyANOVA, ordered = TRUE)
+```
+
+Since there is not differences bw Colonies 4 and 6, and 7 and 8, pool all the data from the pair of colonies and calculate the mean copy number for them? 
+
+```{r FinalMeanCopies}
+ Copy1 <- OfavCopy[which((OfavCopy$Colony=="4")|(OfavCopy$Colony=="6")), ]
+   # summary(Copy1$Of_Actin.Of_SC)
+   mean(Copy1$Of_Actin.Of_SC)
+   sd(Copy1$Of_Actin.Of_SC)
+
+ Copy2 <- OfavCopy[which((OfavCopy$Colony=="7")|(OfavCopy$Colony=="8")), ]
+   # summary(Copy2)
+    mean(Copy2$Of_Actin.Of_SC)
+    sd(Copy2$Of_Actin.Of_SC)
+   
+ 
+```
+Use 2 for colonies 4 and 6, and 7 for colonies 7 and 8. SD for colonies 7 and 8 is very high, rerun samples with min and max values?
+
+
+
 ##---------------------------------------------------------------------------------
-## 1. Calculate qPCR RATIOS 
+# 2. Calculate qPCR RATIOS (Symbiont/Coral) 
 
 Get the raw data for Ofav R.Cunning steponeR function:
 
@@ -44,7 +144,6 @@ Get the raw data for Ofav R.Cunning steponeR function:
 
   Ofav.plates <- list.files(path="data", pattern="csv", full.names=T)
   # Ofav.plates
-
 
   # Run stepone function to get Ratios
   
@@ -91,26 +190,28 @@ Get the raw data for Ofav R.Cunning steponeR function:
     Ofav$B.SH[is.na(Ofav$B.SH)] <- 0
     Ofav$C.SH[is.na(Ofav$C.SH)] <- 0
     Ofav$D.SH[is.na(Ofav$D.SH)] <- 0
-
-# 3. Get the ratios and log 10
+    
+# 3. Get the ratios, correct host copy number and calculate log 10(ratios)
     # Total ratio
-    Ofav$tot.SH <- Ofav$A.SH + Ofav$B.SH + Ofav$C.SH + Ofav$D.SH    
-    Ofav$logTot.SH <- log10(Ofav$tot.SH )  # Calculate log10 SH ratio
+    Ofav$tot.SH <- Ofav$A.SH + Ofav$B.SH + Ofav$C.SH + Ofav$D.SH  
     
-    # A LOG10 ratio
-        Ofav$logA.SH <- log10(Ofav$A.SH)
-    # B LOG10 ratio
-        Ofav$logB.SH <- log10(Ofav$B.SH)
-    # C LOG10 ratio
-        Ofav$logC.SH <- log10(Ofav$C.SH)
-    # D LOG10 ratio
-        Ofav$logD.SH <- log10(Ofav$D.SH)  
+    #Host copy number correction
     
-      Ofav$logTot.SH[which(Ofav$tot.SH==0)] <- NA
-      Ofav$logA.SH[which(Ofav$A.SH==0)] <- NA
-      Ofav$logB.SH[which(Ofav$B.SH==0)] <- NA
-      Ofav$logC.SH[which(Ofav$C.SH==0)] <- NA
-      Ofav$logD.SH[which(Ofav$D.SH==0)] <- NA
+    colony.core2 <- rbind.fill(lapply(strsplit(as.character(Ofav$Sample.Name), split="-"), 
+        function(X) data.frame(t(X))))
+    colnames(colony.core2) <- c("Colony", "Core")
+    Ofav <- cbind(colony.core2, Ofav)
+    
+    Ofav$HostCopy <-NA
+    Ofav$HostCopy[which(Ofav$Colony==4)] <- 2
+    Ofav$HostCopy[which(Ofav$Colony==6)] <- 2
+    Ofav$HostCopy[which(Ofav$Colony==7)] <- 7
+    Ofav$HostCopy[which(Ofav$Colony==8)] <- 7
+    
+    Ofav$tot.SH_c <- (Ofav$tot.SH/(1/Ofav$HostCopy))
+    
+    Ofav$Log_tot.SH_c <- log10(Ofav$tot.SH_c)  # Calculate log10 SH ratio
+    Ofav$Log_tot.SH_c[which(Ofav$tot.SH_c==0)] <- NA
   
 # 4. Clade Proportion
       # D Proportion
@@ -126,7 +227,7 @@ All the cores are cleary dominated by D symbionts, so I won't perform any analys
 3. Check and remove samples that did not have calculated SH cell ratio
 
 ```{r}
-    NoHSratio <- Ofav[which(Ofav$tot.SH==0), ]
+    NoHSratio <- Ofav[which(Ofav$tot.SH_c==0), ]
     Ofav <- droplevels(Ofav[!rownames(Ofav) %in% rownames(NoHSratio), ])
 ```    
 
@@ -185,24 +286,22 @@ All the cores are cleary dominated by D symbionts, so I won't perform any analys
 ```
    
     
-##---------------------------------------------------------------------------------
-## 2. DATA ANALYSIS
+#---------------------------------------------------------------------------------
+## 3. DATA ANALYSIS
 
     
 ### 1.Define labeling and factors for each Ofav core sampled: 
     
 * Import treatment info from last Lauren's file 
 
-```{r}
-    Treatments<-read.csv("TGFB-Final_AP.csv", header = TRUE)
-```  
-
 * Merge SH ratios and Treatment information
 
-```{r}   
+```{r Treatments}
+    Treatments<-read.csv("TGFB-Final_AP.csv", header = TRUE)
+
     Ofav.data<-join(Ofav, Treatments, by = "Sample.Name", 
                   type = "full", match = "all")
-```
+```  
 
 ### 2. Exploratory graphs 
 
@@ -211,15 +310,17 @@ All the cores are cleary dominated by D symbionts, so I won't perform any analys
 Histogram of log10(SH) using all data
 
 ```{r}
-    
-    HistoSH<-qplot(logTot.SH, data=Ofav.data, binwidth=0.15)  
+    HistoSH<-qplot(tot.SH, data=Ofav.data, binwidth=0.02)  
     HistoSH
+    
+    HistoL_SH<-qplot(Log_tot.SH_c, data=Ofav.data, binwidth=0.15)  
+    HistoL_SH
 ```
     
 Histogram of log10(SH) by Combo (Nutrient Treatment * LGTB Treatment)
 
-````{r}
-    HistoSH + 
+```{r }
+    HistoL_SH + 
       facet_wrap(Treatment~Treatment.2) + 
       geom_density()
 ```
@@ -227,26 +328,25 @@ Histogram of log10(SH) by Combo (Nutrient Treatment * LGTB Treatment)
 This is redundant information, but looking at these density plots I am a bit concerned about the SH cell ratios in Inhibitor, since the differences bw Controls and NH4 are not that clear
 
 ```{r}
-    hist_Tre <- ggplot(Ofav.data, aes(x=logTot.SH, fill=Treatment))
+    hist_Tre <- ggplot(Ofav.data, aes(x=Log_tot.SH_c, fill=Treatment))
     
     hist_Tre + 
       geom_density(alpha = 0.2) + facet_grid(Treatment.2~.)
 ```
 
-#### 2.2 Boxplots
+#### 2.2 Mean -+ SD
 
-Consider that ggplot shows by default median values instead mean values
-    
-Boxplot SH by Nutrients: 
+SH by Nutrients: 
   
 ```{r}
 
-    logSHTreatment <- ggplot(Ofav.data, aes(factor(Treatment), logTot.SH)) +
+    logSHTreatment <- ggplot(Ofav.data, aes(factor(Treatment), Log_tot.SH_c)) +
         geom_boxplot(aes(fill=factor(Treatment))) +
+        stat_summary(fun.data = "mean_cl_boot",geom = "errorbar", width = 0.2)+
+        stat_summary(fun.y=mean, geom="point", size =3, alpha=0.5) +
         geom_jitter(width = 0.2, aes(colour =factor(Colony)))
    
    logSHTreatment
-     
 ```
 
 Boxplot SH by Nutrients * TGFB: 
@@ -256,44 +356,18 @@ Boxplot SH by Nutrients * TGFB:
       facet_grid ((~Treatment.2))
 ```
    
-* Interestingly, Colony 4 has generally lower SH and 7 and 8 have higher. 
 
 * I think that 6 may be have lower values in the NH4 treatment because of the lower time with nutrients after mortallity?
 
-
-If you want the mean values +- SD: 
-    
-    * Create a function to calculate de values: 
-
-```{r}
-          min.mean.sd.max <- function(x) {
-            r <- c(min(x), mean(x) - sd(x), mean(x), mean(x) + sd(x), max(x))
-            names(r) <- c("ymin", "lower", "middle", "upper", "ymax")
-            r
-          }
-```
-        
-    * And plot using ggplot
-
-```{r}
-      PlotMeanAndSD <- ggplot(aes(y = logTot.SH, x = factor(Treatment)), data = Ofav.data) +
-                  facet_grid ((~Treatment.2))
-      
-      PlotMeanAndSD + 
-         stat_summary(fun.data = min.mean.sd.max, geom = "boxplot") +
-         geom_jitter(position=position_jitter(width=.2), size=2) + 
-         xlab("Treatments") + ylab("Log10(SH cell ratio)")
-
-```
   
-  Finally, let's explore that possible colony effect!
+Possible colony effect
   
-```{r}
+```{r }
     logSHTreatment +
       facet_grid (~Colony)
 ```
 
-And... fuck, maybe consider to exclude colony 6 or to treat the SH cell ratio as a continous variable instead as a high/low category. See ANOVA at the end.
+Maybe consider to exclude colony 6 or to treat the SH cell ratio as a continous variable instead as a high/low category. See ANOVA at the end.
 
 ```{r}
     logSHTreatment +
@@ -314,7 +388,7 @@ Explore later, check weird SH Values and new introduced cores in the NH4 treatme
 #### 1. One way ANOVA to test the effect of nutrients alone: 
     
 ```{r}
-    OnwWayANOVA<-aov(logTot.SH~Treatment, data=Ofav.data)
+    OnwWayANOVA<-aov(Log_tot.SH_c~Treatment, data=Ofav.data)
         summary(OnwWayANOVA)
       
 ```
@@ -324,7 +398,7 @@ Great! Nutrients increased the SH cell ratio!
 
 ```{r}
     
-    TwoWayANOVA<-aov(logTot.SH ~ Treatment*Treatment.2 , data=Ofav.data)
+    TwoWayANOVA<-aov(Log_tot.SH_c ~ Treatment*Treatment.2 , data=Ofav.data)
         summary(TwoWayANOVA)
         drop1(TwoWayANOVA,~.,test="F")
         
@@ -332,118 +406,19 @@ Great! Nutrients increased the SH cell ratio!
 
 ATENTION!!!! summary(ANOVA) and drop1(ANOVA) give different p values for the model. I have to investigate what the difference is, but in both cases Treatment (Nutrients) has a significant effect on the SH cell ratio while Treatment.2 (TGFB) does not, nor the interaction. Great!!!
 
-However, I am afraid that the differences in the SH cell ratio in "Inhibitor" are not very strong. See graphs
-
+However, I am afraid that the differences in the SH cell ratio in "Inhibitor" are not very strong.
 
 
 #### 3. One Way ANOVA within factor to test effects of Nutrients (Treatment)/ Colony
   
 ```{r}
     
-   TwoFactorsLMcolony<-lme(logTot.SH~Treatment*Treatment.2,random=~1|Colony,data=Ofav.data)
+   TwoFactorsLMcolony<-lme(Log_tot.SH_c~Treatment*Treatment.2,random=~1|Colony,data=Ofav.data)
         anova(TwoFactorsLMcolony)
         summary(TwoFactorsLMcolony)
-
 ```
 
-
-# 3/31/2017: Add copy number corection for O.fav genotypes and rerun stats 
-
-## 1. Calculate Copy number
-
-Get the raw data for Ofav R.Cunning steponeR function:
-
-* Get list of plate files to read
-* Calculate the corections
-
- 
-```{r CalculateCopyNumber}
-
-Ofav.copyList <- list.files(path="HostCopyNumber/data", pattern="csv", full.names=T)
-  # Ofav.copy
-
-
-  # Run stepone function to get Ratios
-  
-  OfavCopy.Out <- steponeR (files=Ofav.copyList, target.ratios=c("Of_Actin.Of_SC"), 
-                       fluor.norm=list(Of_Actin=0, Of_SC=0),
-                       copy.number=list(Of_Actin=1, Of_SC=1),
-                       ploidy=list(Of_Actin=2, Of_SC=2),
-                       extract=list(Of_Actin=0.982, Of_SC=0.982))
-  
-  # Target ratio results
-  OfavCopy<-OfavCopy.Out$result
+```{r}
+    ToRunCopy<-anti_join(Ofav.data, OfavCopy, by = "Sample.Name")
 
 ```
-### Data CLEANING
-
-```{r RemoveNTCandControls}
-    # 1. Check and remove NTC wells
-      ntc <- OfavCopy[which(OfavCopy$Sample.Name=="0-NTC"), ]
-      OfavCopy <- droplevels(OfavCopy[!rownames(OfavCopy) %in% rownames(ntc), ])
-      
-      # 2. remove samples with 1 amplificaation 
-      # NoData <- OfavCopy[which(OfavCopy$Of_Actin.reps==1), ]
-      
-      NoData <- OfavCopy[which((OfavCopy$Of_Actin.reps==1) |  (OfavCopy$Of_SC.reps==1)), ]
-      OfavCopy <- droplevels(OfavCopy[!rownames(OfavCopy) %in% rownames(NoData), ])
-      
-      # 3. or high SD
-        StDe2 <- OfavCopy[which((OfavCopy$Of_Actin.CT.sd)>0.5|(OfavCopy$Of_SC.CT.sd>0.5)), ]
-        OfavCopy <- droplevels(OfavCopy[!rownames(OfavCopy) %in% rownames(StDe2), ])
-```
-## 2. Calculate Copy number by colony
-
-### Colonies
-Parse sample names, 
-
-```{r ColonyLabels}
-    colony.core <- rbind.fill(lapply(strsplit(as.character(OfavCopy$Sample.Name), split="-"), 
-        function(X) data.frame(t(X))))
-    colnames(colony.core) <- c("Colony", "Core")
-    OfavCopy <- cbind(colony.core, OfavCopy)
-```
-Graph mean +- SD copy number
-
-```{r meanC-Number}
-
- OfavCopy<-join(OfavCopy, Treatments, by = "Sample.Name", 
-                  type = "inner", match = "all")
-
-  CopyNumber <- ggplot(OfavCopy, aes (Colony, Of_Actin.Of_SC, colour=factor(Colony)))
-  CopyNumber + stat_summary(fun.data = "mean_cl_boot",geom = "errorbar", width = 0.2)+
-    stat_summary(fun.y=mean, geom="point", size =3, alpha=0.5) +
-    geom_jitter()
-  
-  par(mfrow=c(2,2))
-      # Mean CTs and sd bu Colony
-      plot(x=OfavCopy$Colony, y=OfavCopy$Of_Actin.CT.mean)
-      plot(x=OfavCopy$Colony, y=OfavCopy$Of_SC.CT.mean)
-      plot(x=OfavCopy$Colony, y=OfavCopy$Of_Actin.CT.sd)
-      plot(x=OfavCopy$Colony, y=OfavCopy$Of_SC.CT.sd)
-  par(mfrow=c(1,1))
-```
-
-
-```{r meanC-Number}
-#  
-# library(dplyr)
-# grouped <- group_by(OfavCopy, Colony)
-# summarise(grouped, mean=mean(Of_Actin.Of_SC), sd=sd(Of_Actin.Of_SC))
-# 
-# summarise(group_by(grouped, Colony),
-#           mean=mean(Of_Actin.Of_SC), sd=sd(Of_Actin.Of_SC))
-# 
-# ddply(CopyNumber, Colony, summarise, mean=mean(Of_Actin.Of_SC),sd=sd(Of_Actin.Of_SC))
-
-```
-  
-      
-```{r_ANOVA}
-    CopyANOVA <-aov(Of_Actin.Of_SC~Colony, data=OfavCopy)
-        summary(CopyANOVA)
-      
-```
-
-
-
