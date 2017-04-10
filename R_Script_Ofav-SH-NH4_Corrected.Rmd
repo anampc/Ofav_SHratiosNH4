@@ -149,7 +149,7 @@ Get the raw data for Ofav R.Cunning steponeR function:
   
   Ofav.Out <- steponeR(files=Ofav.plates, target.ratios=c("A.Ofav", "B.Ofav","C.Ofav", "D.Ofav"), 
                        fluor.norm=list(A=-0.064, B=4.197, C=3.798, D=0, Ofav=7.416),
-                       copy.number=list(A=1, B=1,C=50, D=3, Ofav=14),
+                       copy.number=list(A=1, B=1,C=50, D=3, Ofav=1),
                        ploidy=list(A=1, B=1, C=1, D=1, Ofav=2),
                        extract=list(A=0.813, B=0.813, C=0.813, D=0.813, Ofav=0.982))
   
@@ -209,6 +209,9 @@ Get the raw data for Ofav R.Cunning steponeR function:
     Ofav$HostCopy[which(Ofav$Colony==8)] <- 7
     
     Ofav$tot.SH_c <- (Ofav$tot.SH/(1/Ofav$HostCopy))
+    
+    Ofav$Log_tot.SH <- log10(Ofav$tot.SH)  # Calculate log10 SH ratio
+    Ofav$Log_tot.SH[which(Ofav$tot.SH==0)] <- NA
     
     Ofav$Log_tot.SH_c <- log10(Ofav$tot.SH_c)  # Calculate log10 SH ratio
     Ofav$Log_tot.SH_c[which(Ofav$tot.SH_c==0)] <- NA
@@ -310,11 +313,11 @@ All the cores are cleary dominated by D symbionts, so I won't perform any analys
 Histogram of log10(SH) using all data
 
 ```{r}
-    HistoSH<-qplot(tot.SH, data=Ofav.data, binwidth=0.02)  
-    HistoSH
+  # HistoSH<-qplot(tot.SH, data=Ofav.data, binwidth=0.02)  
+  # HistoSH
     
-    HistoL_SH<-qplot(Log_tot.SH_c, data=Ofav.data, binwidth=0.15)  
-    HistoL_SH
+  #  HistoL_SH<-qplot(Log_tot.SH_c, data=Ofav.data, binwidth=0.15)  
+  #  HistoL_SH
 ```
     
 Histogram of log10(SH) by Combo (Nutrient Treatment * LGTB Treatment)
@@ -340,13 +343,19 @@ SH by Nutrients:
   
 ```{r}
 
-    logSHTreatment <- ggplot(Ofav.data, aes(factor(Treatment), Log_tot.SH_c)) +
+    logSHTreatment_C <- ggplot(Ofav.data, aes(factor(Treatment), Log_tot.SH_c)) +
         geom_boxplot(aes(fill=factor(Treatment))) +
         stat_summary(fun.data = "mean_cl_boot",geom = "errorbar", width = 0.2)+
         stat_summary(fun.y=mean, geom="point", size =3, alpha=0.5) +
         geom_jitter(width = 0.2, aes(colour =factor(Colony)))
-   
-   logSHTreatment
+      logSHTreatment_C
+      
+      logSHTreatment <- ggplot(Ofav.data, aes(factor(Treatment), Log_tot.SH)) +
+        geom_boxplot(aes(fill=factor(Treatment))) +
+        stat_summary(fun.data = "mean_cl_boot",geom = "errorbar", width = 0.2)+
+        stat_summary(fun.y=mean, geom="point", size =3, alpha=0.5) +
+        geom_jitter(width = 0.2, aes(colour =factor(Colony)))
+      logSHTreatment
 ```
 
 Boxplot SH by Nutrients * TGFB: 
