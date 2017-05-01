@@ -23,7 +23,7 @@ knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
         library(reshape2)
         library(ggplot2)
         library(nlme)
-        # library(lme4)
+        library(lme4)
         #library(lmerTest)
 ```
 
@@ -56,9 +56,11 @@ Ofav.copyList <- list.files(path="HostCopyNumber/data", pattern="csv", full.name
 ### A. Data CLEANING
 
 ```{r RemoveNTC}
-    # 1. Check and remove NTC wells
+    # 1. Check and remove NTC wells and column with # of reps
       ntc <- OfavCopy[which(OfavCopy$Sample.Name=="0-NTC"), ]
       OfavCopy <- droplevels(OfavCopy[!rownames(OfavCopy) %in% rownames(ntc), ])
+      
+      OfavCopy <- subset( OfavCopy, select = -c(Of_Actin.reps, Of_SC.reps) )
       
     # 2. remove samples with 1 amplificaation 
       NoData <- OfavCopy[which((OfavCopy$Of_Actin.reps==1) |  (OfavCopy$Of_SC.reps==1)), ]
@@ -67,8 +69,46 @@ Ofav.copyList <- list.files(path="HostCopyNumber/data", pattern="csv", full.name
     # 3. or high SD
       StDe2 <- OfavCopy[which((OfavCopy$Of_Actin.CT.sd)>0.6|(OfavCopy$Of_SC.CT.sd>0.6)), ]
       OfavCopy <- droplevels(OfavCopy[!rownames(OfavCopy) %in% rownames(StDe2), ])
+      
+    # 4. Chose bw samples ran more than once. Some samples looked like outliyers. Runned 2x and also were run from 2nd extractions (CopyNUmber PLate5)
+      # * First, I create a unique ID for each sample.run and count the number of times that each core was ran in the qPCR. Then I export the data from the samples that have duplicates in a .csv file that I "manually" check
+    OfavCopy$ID<-paste(OfavCopy$Sample.Name,OfavCopy$File.Name, sep = ".")
+    
+  # Check the number of times that a sigle sample was ran  
+    ReRunA_Copy <- OfavCopy[duplicated(OfavCopy$Sample.Name),]
+    
+    n_RunA_Copy <- data.frame(table(OfavCopy$Sample.Name))
+    colnames(n_RunA_Copy)<-c("Sample.Name","RanA")
+    OfavCopy<-join(OfavCopy, n_RunA_Copy, type = "left")
+    
+    DuplicatesA_Copy <- OfavCopy[(OfavCopy$RanA>1),]
+    write.csv(DuplicatesA_Copy, file = 'DuplicatesA_Copy.csv')
+    
 ```
-### B. Calculate Copy number by colony
+
+* Look at the duplicates in 'DuplicatesA.csv' and select the best runs per core. In the DuplicatesA file I delete the good runs and keep the bad ones that are saved a new file called "ToRem1.csv". I use that file to remove them from the general data frame.
+
+* Finally check for duplicates again (you should not have) and summarize the data to check that it makes sense.
+
+```{r}
+  # Remove bad replicates
+    ToRem_Copy<-read.csv("ToRemove_Copy.csv") 
+    # 10/12/16
+    OfavCopy<-OfavCopy[!(OfavCopy$ID %in% ToRem_Copy$ID),]
+    
+  # Check for replicates again--should have none
+    
+    n_RunB_Copy <- data.frame(table(OfavCopy$Sample.Name))
+    ReRunB_Copy <- OfavCopy[duplicated(OfavCopy$Sample.Name),]
+    colnames(n_RunB_Copy)<-c("Sample.Name","RanB")
+    OfavCopy<-join(OfavCopy, n_RunB_Copy, type = "left")
+    
+    
+  # List of dupplicated samples, should have 0 rows now
+    DuplicatesB_Copy <- OfavCopy[(OfavCopy$RanB>1),]
+    # write.csv(DuplicatesC, file = 'DuplicatesC.csv')
+```
+### B. Calculate mean copy number by colony
 
 Get Colony number from the sample.name
 
@@ -204,7 +244,7 @@ Get the raw data for Ofav R.Cunning steponeR function:
     
     Ofav$HostCopy <-NA
     Ofav$HostCopy[which(Ofav$Colony==4)] <- 2
-    Ofav$HostCopy[which(Ofav$Colony==6)] <- 2
+    Ofav$HostCopy[which(Ofav$Colony==6)] <- 3
     Ofav$HostCopy[which(Ofav$Colony==7)] <- 7
     Ofav$HostCopy[which(Ofav$Colony==8)] <- 7
     
@@ -316,8 +356,8 @@ Histogram of log10(SH) using all data
   # HistoSH<-qplot(tot.SH, data=Ofav.data, binwidth=0.02)  
   # HistoSH
     
-  #  HistoL_SH<-qplot(Log_tot.SH_c, data=Ofav.data, binwidth=0.15)  
-  #  HistoL_SH
+  HistoL_SH<-qplot(Log_tot.SH_c, data=Ofav.data, binwidth=0.15)  
+  HistoL_SH
 ```
     
 Histogram of log10(SH) by Combo (Nutrient Treatment * LGTB Treatment)
@@ -363,6 +403,9 @@ Boxplot SH by Nutrients * TGFB:
 ```{r}
     logSHTreatment +
       facet_grid ((~Treatment.2))
+
+ logSHTreatment_C +
+      facet_grid ((~Treatment.2))
 ```
    
 
@@ -374,6 +417,8 @@ Possible colony effect
 ```{r }
     logSHTreatment +
       facet_grid (~Colony)
+    logSHTreatment_C +
+      facet_grid (~Colony)
 ```
 
 Maybe consider to exclude colony 6 or to treat the SH cell ratio as a continous variable instead as a high/low category. See ANOVA at the end.
@@ -381,6 +426,10 @@ Maybe consider to exclude colony 6 or to treat the SH cell ratio as a continous 
 ```{r}
     logSHTreatment +
       facet_grid (Treatment.2~Colony)
+
+    logSHTreatment_C +
+      facet_grid (Treatment.2~Colony)
+
 ```
   
 Possible problematic combinations: 
@@ -420,11 +469,17 @@ However, I am afraid that the differences in the SH cell ratio in "Inhibitor" ar
 
 #### 3. One Way ANOVA within factor to test effects of Nutrients (Treatment)/ Colony
   
-```{r}
-    
-   TwoFactorsLMcolony<-lme(Log_tot.SH_c~Treatment*Treatment.2,random=~1|Colony,data=Ofav.data)
-        anova(TwoFactorsLMcolony)
-        summary(TwoFactorsLMcolony)
+```{r Models}
+
+  library(lmerTest)
+  library(effects)
+
+
+   OneFactorLMcolony<-lmer(Log_tot.SH_c ~ Treatment + (1|Colony),data=Ofav.data)
+        anova(OneFactorLMcolony)
+        summary(OneFactorLMcolony)
+        
+        plot(Effect(c("Treatment"), OneFactorLMcolony), x.var="Treatment", multiline=T, ci.style="bars")
 ```
 
 ```{r}
