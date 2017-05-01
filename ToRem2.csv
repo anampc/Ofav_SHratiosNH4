@@ -30,3 +30,17 @@
 86,6-99,Ofav_Lauren_ReRuns.csv,NA,NA,24.6025994797,23.4347991943,15.9915527191,NA,NA,1.8572949514,1.1715502161,0.6476884913,0,0,2,2,2,0,0,0.0017299183,0.0647764681,0.0665063864,-1.1771366486,NA,NA,-2.7619743998,-1.1885827353,0.9739886886,2,6-99.Ofav_Lauren_ReRuns.csv
 30,8-17,Ofav_Lauren_Plate3.csv,NA,NA,NA,25.2381019592,18.5209678497,NA,NA,NA,0.7688664128,NA,0,0,0,2,1,0,0,0,0.107151651,0.107151651,-0.970001133,NA,NA,NA,-0.970001133,1,2,8-17.Ofav_Lauren_Plate3.csv
 57,8-32,Ofav_Lauren_Plate5.csv,NA,NA,NA,23.0384950638,17.6147664871,NA,NA,NA,0.2029508997,0.1046819821,0,0,0,2,2,0,0,0,0.2626350769,0.2626350769,-0.5806472711,NA,NA,NA,-0.5806472711,1,2,8-32.Ofav_Lauren_Plate5.csv
+64,4-42,Ofav_Lauren_Plate7.csv,,NA,25.245,15.287,NA,0.022,0.025,0.001,0.001,0.002,-3.089,-2.788,0.9951339445,,3,2,FL16-56,Control,Control,Control x Control,good,,,,,,,4-42.Ofav_Lauren_Plate7.csv
+75,4-66,Ofav_Lauren_Plate8c.csv,,NA,26.063,18.408,NA,0.084,0.449,0.004,0.004,0.008,-2.399,-2.098,1,,2,2,FL16-71,Control,LPS,Control x LPS,good,,,,,,,4-66.Ofav_Lauren_Plate8c.csv
+77,4-70,Ofav_Lauren_Plate8c.csv,,NA,27.571,18.957,NA,0.135,0.348,0.002,0.002,0.004,-2.687,-2.386,1,,2,2,FL16-63,Control,LPS,Control x LPS,good,,,,,,,4-70.Ofav_Lauren_Plate8c.csv
+96,4-71,Ofav_Lauren_ReRuns.csv,,35.072,24.072,15.000,NA,0.059,0.172,0.001,0.001,0.003,-2.825,-2.524,1,,3,2,FL16-38,NH4,Inhibitor,NH4 x Inhibitor,ok,,,,,,,4-71.Ofav_Lauren_ReRuns.csv
+2,6-109,Ofav_Lauren_Plate1.csv,,NA,24.720,15.708,NA,0.072,0.022,0.002,0.002,0.005,-2.807,-2.330,1,,3,2,FL16-10,NH4,Control,NH4 x Control,old tissue loss,,,,,,,6-109.Ofav_Lauren_Plate1.csv
+13,6-21,Ofav_Lauren_Plate2.csv,,NA,23.377,15.819,NA,0.032,0.549,0.004,0.004,0.013,-2.369,-1.892,1,,3,2,FL16-25,Control,LPS,Control x LPS,epoxy,,,,,,,6-21.Ofav_Lauren_Plate2.csv
+84,6-27,Ofav_Lauren_Plate8c.csv,,NA,24.883,18.083,NA,0.142,0.459,0.007,0.007,0.022,-2.141,-1.664,1,,2,2,FL16-64,Control,LPS,Control x LPS,epoxy,,,,,,,6-27.Ofav_Lauren_Plate8c.csv
+35,7-48,Ofav_Lauren_Plate4.csv,,NA,23.742,15.377,NA,0.224,0.503,0.002,0.002,0.020,-2.612,-1.709,1,,2,2,FL16-51,Control,LPS,Control x LPS,epoxy,,,,,,,7-48.Ofav_Lauren_Plate4.csv
+16,7-66,Ofav_Lauren_Plate2.csv,,NA,24.341,16.728,NA,0.043,1.041,0.004,0.004,0.033,-2.386,-1.483,1,,2,2,FL16-22,NH4,Control,NH4 x Control,affected but ok,,,,,,,7-66.Ofav_Lauren_Plate2.csv
+27,7-77,Ofav_Lauren_Plate3.csv,,NA,22.665,15.192,NA,0.095,0.248,0.005,0.005,0.036,-2.344,-1.440,1,,2,2,FL16-46,NH4,Control,NH4 x Control,replacement,,,,,,,7-77.Ofav_Lauren_Plate3.csv
+90,8-21,Ofav_Lauren_Plate8c.csv,,NA,30.256,23.334,NA,0.847,0.381,0.007,0.007,0.053,-2.178,-1.275,1,,2,2,FL16-16,NH4,Inhibitor,NH4 x Inhibitor,ok,,,,,,,8-21.Ofav_Lauren_Plate8c.csv
+39,8-28,Ofav_Lauren_Plate4.csv,,NA,22.934,16.709,NA,0.024,0.082,0.011,0.011,0.086,-1.968,-1.065,1,,2,2,FL16-62,NH4,Control,NH4 x Control,ok,,,,,,,8-28.Ofav_Lauren_Plate4.csv
+8,8-3,Ofav_Lauren_Plate1.csv,,NA,24.737,16.065,NA,0.012,0.106,0.002,0.002,0.016,-2.705,-1.802,1,,2,2,FL16-13,Control,Control,Control x Control,good,,,,,,,8-3.Ofav_Lauren_Plate1.csv
+40,8-30,Ofav_Lauren_Plate4.csv,,NA,23.909,17.110,NA,0.038,0.317,0.007,0.007,0.058,-2.141,-1.238,1,,2,2,FL16-61,NH4,Control,NH4 x Control,ok,,,,,,,8-30.Ofav_Lauren_Plate4.csv
